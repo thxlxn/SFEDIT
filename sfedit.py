@@ -6,7 +6,7 @@ import customtkinter as ctk
 from customtkinter import filedialog
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("green")
+ctk.set_default_color_theme("dark-blue")
 
 class SFEDIT(ctk.CTk):
     def __init__(self): 
@@ -23,14 +23,19 @@ class SFEDIT(ctk.CTk):
         # -------------- Buttons section --------------
 
         # > Exit button
-        self.close_button = ctk.CTkButton(self, command=self.close_app, text="Exit", width=200, height=50, font=("Arial", 14))
+        self.close_button = ctk.CTkButton(self, command=self.close_app, text="Exit", 
+                                          width=200, height=50, font=("Arial", 14), 
+                                          fg_color="#C59102", hover_color="#DDB74F")
         self.close_button.grid(row=0, column=1)
         # > Thickness button
-        self.thickness_button = ctk.CTkButton(self, command=self.change_thickness, text="Change the thickness", width=200, height=50, font=("Arial", 14))
+        self.thickness_button = ctk.CTkButton(self, command=self.change_thickness, text="Change the thickness", 
+                                              width=200, height=50, font=("Arial", 14),
+                                              fg_color="#C59102", hover_color="#DDB74F")
         self.thickness_button.grid(row=0, column=0)
         # > Thickness selector slider
         self.thickval = 5
-        self.thick_slider = ctk.CTkSlider(self, from_=1, to=100, command=self.set_thick)
+        self.thick_slider = ctk.CTkSlider(self, from_=1, to=100, command=self.set_thick, 
+                                          fg_color="#DBC587", button_color="#C59102", button_hover_color="#DDB74F", progress_color="#C59102")
         self.thick_slider.grid(row=1, column=0, columnspan=2)
         self.thick_slider.set(self.thickval)
 
@@ -83,7 +88,11 @@ class SFEDIT(ctk.CTk):
 
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(filedata)
-        
+
+
+class ThicknessWindow(ctk.CTkToplevel):
+        None
+
 
 root = SFEDIT()
 root.mainloop()
