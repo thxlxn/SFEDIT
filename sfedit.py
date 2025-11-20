@@ -6,13 +6,17 @@ import customtkinter as ctk
 from customtkinter import filedialog
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("green")
+ctk.set_default_color_theme("dark-blue")
 
 class SFEDIT(ctk.CTk):
-    def __init__(self): 
-        super().__init__()
+    def __init__(self, *args, **kwargs): 
+        super().__init__(*args, **kwargs)
+
+        #-------------- Window setup --------------
+
         self.title("Sprocket FIle Editor")
-        self.geometry("400x300")
+        self.geometry("800x600")
+        self.thickness_window = None
         
         # Geometry fit to screen
         # height, width = self.winfo_screenheight(), self.winfo_screenwidth()
@@ -23,21 +27,15 @@ class SFEDIT(ctk.CTk):
         # -------------- Buttons section --------------
 
         # > Exit button
-        self.close_button = ctk.CTkButton(self, command=self.close_app, text="Exit", width=200, height=50, font=("Arial", 14))
+        self.close_button = ctk.CTkButton(self, command=self.destroy, text="Exit", 
+                                          width=200, height=50, font=("Arial", 14), 
+                                          fg_color="#C59102", hover_color="#DDB74F")
         self.close_button.grid(row=0, column=1)
         # > Thickness button
-        self.thickness_button = ctk.CTkButton(self, command=self.change_thickness, text="Change the thickness", width=200, height=50, font=("Arial", 14))
-        self.thickness_button.grid(row=0, column=0)
-        # > Thickness selector slider
-        self.thickval = 5
-        self.thick_slider = ctk.CTkSlider(self, from_=1, to=100, command=self.set_thick)
-        self.thick_slider.grid(row=1, column=0, columnspan=2)
-        self.thick_slider.set(self.thickval)
-
-        # -------------- Labels section --------------
-
-        self.thick_label = ctk.CTkLabel(self, text=f"{self.thickval} mm", font=("Arial", 14))
-        self.thick_label.grid(row=2, column=0, columnspan=2, pady=(4,10))
+        self.thick_window_button = ctk.CTkButton(self, command=self.open_thickness_window, text="Thickness Editor",
+                                                 width=200, height=50, font=("Arial", 14), 
+                                                 fg_color="#C59102", hover_color="#DDB74F")
+        self.thick_window_button.grid(row=0, column=0)
     
     def close_app(self):
         """
@@ -46,6 +44,49 @@ class SFEDIT(ctk.CTk):
         
         self.destroy()
     
+    def open_thickness_window(self):
+        """
+        Open a new window for thickness selection.
+        """
+        
+        if self.thickness_window is None or not self.thickness_window.winfo_exists():
+            self.thickness_window = ThicknessWindow(self)
+        else:
+            self.thickness_window.focus()
+
+
+class ThicknessWindow(ctk.CTkToplevel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # -------------- Window setup --------------
+
+        self.geometry("600x400")
+        
+        # -------------- Buttons section --------------
+
+        # > Back button
+        self.back_button = ctk.CTkButton(self, command=self.destroy, text="<- Back",
+                                         width=200, height=50, font=("Arial", 14),
+                                         fg_color="#C59102", hover_color="#DDB74F")
+        self.back_button.grid(row=0, column=1)
+        # > Thickness button
+        self.thickness_button = ctk.CTkButton(self, command=self.change_thickness, text="Change the thickness", 
+                                              width=200, height=50, font=("Arial", 14),
+                                              fg_color="#C59102", hover_color="#DDB74F")
+        self.thickness_button.grid(row=0, column=0)
+        # > Thickness selector slider
+        self.thickval = 5
+        self.thick_slider = ctk.CTkSlider(self, from_=1, to=100, command=self.set_thick, 
+                                          fg_color="#DBC587", button_color="#C59102", button_hover_color="#DDB74F", progress_color="#C59102")
+        self.thick_slider.grid(row=1, column=0, columnspan=2)
+        self.thick_slider.set(self.thickval)
+
+        # -------------- Labels section --------------
+
+        self.thick_label = ctk.CTkLabel(self, text=f"{self.thickval} mm", font=("Arial", 14))
+        self.thick_label.grid(row=2, column=0, columnspan=2, pady=(4,10))
+
     def set_thick(self, value):
         """
         Callback for thickness slider to set thickness value.
@@ -83,7 +124,8 @@ class SFEDIT(ctk.CTk):
 
         with open(filepath, "w", encoding="utf-8") as file:
             file.write(filedata)
-        
+
+
 
 root = SFEDIT()
 root.mainloop()
