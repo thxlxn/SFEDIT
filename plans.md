@@ -1,7 +1,4 @@
-- make it looped with different *operations
-- add GUI
-- *change thickness, merge compartments ... etc.
-
+- merge compartments
 - remove tracks (+ y/n option to remove suspension)
-- adjust reload/other crew with sliders
+- adjust crewmember stats
 - era creator (maybe)
