@@ -1,3 +1,4 @@
+![alt text](https://github.com/thxlxn/SFEDIT/blob/main/fv4030as.png)
 # SFEDIT - Sprocket File EDITor
 I haven't compiled this into an .exe yet, so you can run it from your IDE or through the terminal.
 
