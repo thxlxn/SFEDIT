@@ -10,9 +10,7 @@ RENDER_SIZE = 800
 
 def get_rotation_matrix(rot):
     """
-    Creates a rotation matrix based on Sprocket's Euler angles.
-    Sprocket (Unity) is Left-Handed. 
-    Order of operations matters: Y (Yaw) -> X (Pitch) -> Z (Roll).
+    Creates a rotation matrix.
     """
     safe_rot = rot[:3]
     if len(safe_rot) < 3:
@@ -20,7 +18,7 @@ def get_rotation_matrix(rot):
 
     rx, ry, rz = [math.radians(a) for a in safe_rot]
 
-    # Roll (Z)
+    # Roll
     mat_z = np.array([
         [math.cos(rz), -math.sin(rz), 0, 0],
         [math.sin(rz), math.cos(rz), 0, 0],
@@ -28,7 +26,7 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # Pitch (X)
+    # Pitch
     mat_x = np.array([
         [1, 0, 0, 0],
         [0, math.cos(rx), -math.sin(rx), 0],
@@ -36,7 +34,7 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # Yaw (Y)
+    # Yaw
     mat_y = np.array([
         [math.cos(ry), 0, math.sin(ry), 0],
         [0, 1, 0, 0],
@@ -44,12 +42,12 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # Combined Rotation: Y * X * Z
+    # combined rotation
     return np.dot(mat_y, np.dot(mat_x, mat_z))
 
 def compose_transform(pos, rot, scale):
     """
-    Composes the Local Transform Matrix: Translation * Rotation * Scale
+    Composes the local transform matrix
     """
     safe_scale = scale[:3]
     if len(safe_scale) < 3: safe_scale += [1] * (3 - len(safe_scale))
@@ -70,23 +68,18 @@ def compose_transform(pos, rot, scale):
 
 def bake_geometry(data):
     """
-    Flattens the hierarchy and handles IMPLIED SYMMETRY.
-    If an object has 'flags' bit 2 set (value 4) and no mirrorVuid,
-    we must generate a mirrored copy of it.
+    Flattens hierarchy and handles symmetry.
     """
     objects = {o["vuid"]: o for o in data.get("objects", [])}
     blueprints = {b["id"]: b for b in data.get("blueprints", [])}
     meshes = {m["vuid"]: m for m in data.get("meshes", [])}
 
-    # 1. Calculate Global Matrices for all existing objects
+    # 1. Calculate Global Matrices
     global_matrices = {}
 
     def get_global_matrix(vuid):
-        if vuid in global_matrices:
-            return global_matrices[vuid]
-        
-        if vuid not in objects:
-            return np.identity(4)
+        if vuid in global_matrices: return global_matrices[vuid]
+        if vuid not in objects: return np.identity(4)
 
         obj = objects[vuid]
         
@@ -106,7 +99,7 @@ def bake_geometry(data):
         global_matrices[vuid] = global_mat
         return global_mat
 
-    # Pre-calculate all matrices
+    # Pre-calculate matrices for everything (parents might be non-geometry)
     for vuid in objects:
         get_global_matrix(vuid)
 
@@ -114,7 +107,6 @@ def bake_geometry(data):
     baked_faces = []
     vertex_offset = 0
 
-    # Helper to process a mesh with a specific matrix
     def add_mesh_to_scene(mesh_id, matrix):
         nonlocal vertex_offset
         if mesh_id not in meshes: return
@@ -125,70 +117,56 @@ def bake_geometry(data):
 
         if not verts: return
         np_verts = np.array(verts).reshape(-1, 3)
-        
         ones = np.ones((len(np_verts), 1))
         np_verts_homo = np.hstack((np_verts, ones))
-
         transformed_verts = np.dot(matrix, np_verts_homo.T).T[:, :3]
 
         baked_vertices.extend(transformed_verts.tolist())
-        
         for f in faces:
             new_indices = [idx + vertex_offset for idx in f["v"]]
             baked_faces.append(new_indices)
-
         vertex_offset += len(transformed_verts)
 
     # 2. Iterate and Bake
     for vuid, obj in objects.items():
-        # Identify Blueprint
-        bp_id = obj.get("structureBlueprintVuid", -1)
-        if bp_id == -1: bp_id = obj.get("cannonBlueprintVuid", -1)
         
-        if bp_id == -1 or bp_id not in blueprints:
-            continue
+        # --- STRICT FILTER ---
+        # 1. Ignore Procedural Cannons explicitly
+        if "cannonBlueprintVuid" in obj: continue
+        
+        # 2. Only process objects that have a Structure Blueprint (Plates, Turrets, Hulls)
+        bp_id = obj.get("structureBlueprintVuid", -1)
+        if bp_id == -1 or bp_id not in blueprints: continue
 
         bp = blueprints[bp_id]
-        if bp.get("type") in ["decal", "crew", "internal"]:
-            continue
+        if bp.get("type") in ["decal", "crew", "internal"]: continue
 
         mesh_id = bp.get("blueprint", {}).get("bodyMeshVuid", -1)
         
-        # -- RENDER ORIGINAL --
+        # Render Original
         matrix = global_matrices[vuid]
         add_mesh_to_scene(mesh_id, matrix)
 
-        # -- CHECK FOR IMPLICIT MIRROR --
-        # Flags bit 2 (value 4) = Symmetry Enabled
-        # mirrorVuid == -1 means the mirror partner is NOT explicit in the object list
+        # --- IMPLICIT SYMMETRY ---
+        # If this is a structural object with symmetry enabled (Bit 3 / Value 4)
+        # and no explicit mirror object exists, we generate the ghost.
         flags = obj.get("flags", 0)
         mirror_vuid = obj.get("transform", {}).get("mirrorVuid", -1)
 
         if (flags & 4) and mirror_vuid == -1:
-            # This object implies a mirror that doesn't exist in the list.
-            # We must generate it mathematically.
-            
-            # 1. Get Parent Matrix
             parent_vuid = obj.get("pvuid", -1)
             parent_mat = global_matrices.get(parent_vuid, np.identity(4))
-
-            # 2. Create Mirrored Local Transform
+            
             tf = obj.get("transform", {})
             pos = tf.get("pos", [0,0,0])
             rot = tf.get("rot", [0,0,0])
             scale = tf.get("scale", [1,1,1])
 
-            # Mirror Logic: Flip X position, Flip Yaw (Y) and Roll (Z)
             mirrored_pos = [-pos[0], pos[1], pos[2]]
             mirrored_rot = [rot[0], -rot[1], -rot[2]]
-            
-            # Compose Matrix
             local_mirror_mat = compose_transform(mirrored_pos, mirrored_rot, scale)
-            
-            # Combine with Parent
             global_mirror_mat = np.dot(parent_mat, local_mirror_mat)
-
-            # Render Ghost
+            
             add_mesh_to_scene(mesh_id, global_mirror_mat)
 
     return np.array(baked_vertices), baked_faces

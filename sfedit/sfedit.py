@@ -1,5 +1,4 @@
 import os
-import sys
 import re
 
 import customtkinter as ctk
@@ -82,6 +81,9 @@ class ThicknessWindow(ctk.CTkToplevel):
 
         self.title("Thickness Editor")
         self.geometry("700x500")
+        self.lift()
+        self.focus_force()
+        self.grab_set()
         
         # --- Layout ---
         self.grid_columnconfigure(0, weight=1)
@@ -167,8 +169,11 @@ class RenderWindow(ctk.CTkToplevel):
         super().__init__(*args, **kwargs)
 
         self.title("3D Wireframe Renderer")
-        self.geometry("700x850") 
-        
+        self.geometry("900x1050") 
+        self.lift()
+        self.focus_force()
+        self.grab_set()
+
         # Memory / Animation State
         self.frames = []
         self.current_frame_idx = 0
@@ -234,7 +239,7 @@ class RenderWindow(ctk.CTkToplevel):
 
         try:
             # Generate 60 frames for a full rotation
-            self.frames = generate_render_frames(filepath, size=600, frames_count=60)
+            self.frames = generate_render_frames(filepath, size=800, frames_count=60)
             
             if not self.frames:
                 self.status_label.configure(text="Error: No geometry found.")
@@ -281,7 +286,7 @@ class RenderWindow(ctk.CTkToplevel):
     def show_current_frame(self):
         if not self.frames: return
         pil_image = self.frames[self.current_frame_idx]
-        ctk_img = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(600, 600))
+        ctk_img = ctk.CTkImage(light_image=pil_image, dark_image=pil_image, size=(800, 800))
         self.image_label.configure(image=ctk_img)
 
     def animate_loop(self):
