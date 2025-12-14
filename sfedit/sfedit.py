@@ -1,15 +1,12 @@
 import os
-import re
-
 import customtkinter as ctk
 from customtkinter import filedialog
-
-from functions import generate_render_frames
+from functions import generate_render_frames, edit_blueprint_file
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 
-# --- Constants for Styling ---
+# --- Styling ---
 COLOR_PRIMARY = "#C59102"
 COLOR_HOVER = "#DDB74F"
 COLOR_SLIDER_BG = "#DBC587"
@@ -18,53 +15,51 @@ class SFEDIT(ctk.CTk):
     def __init__(self, *args, **kwargs): 
         super().__init__(*args, **kwargs)
 
-        #-------------- Window setup --------------
+        # main window setup
         self.title("Sprocket File Editor")
         self.geometry("800x600")
         self.thickness_window = None
         self.render_window = None
         
-        # Configure Grid for Centering
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        #-------------- Main Menu Frame --------------
+        # menu container
         self.menu_frame = ctk.CTkFrame(self, corner_radius=15, width=400)
         self.menu_frame.grid(row=0, column=0, padx=20, pady=20)
         self.menu_frame.grid_columnconfigure(0, weight=1)
 
-        # > Title
+        # title
         self.title_label = ctk.CTkLabel(self.menu_frame, text="SPROCKET EDITOR", 
                                         font=("Arial", 28, "bold"), text_color=COLOR_PRIMARY)
         self.title_label.grid(row=0, column=0, padx=40, pady=(40, 20))
 
-        # > Thickness button
+        # buttons
         self.thick_window_button = ctk.CTkButton(self.menu_frame, command=self.open_thickness_window, 
-                                                 text="Thickness Editor",
+                                                 text="File Editor",
                                                  width=250, height=50, font=("Arial", 16), 
                                                  fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
         self.thick_window_button.grid(row=1, column=0, padx=40, pady=15)
 
-        # > Render button
         self.render_window_button = ctk.CTkButton(self.menu_frame, command=self.open_render_window, 
                                                   text="3D Visualizer",
                                                   width=250, height=50, font=("Arial", 16), 
                                                   fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
         self.render_window_button.grid(row=2, column=0, padx=40, pady=15)
 
-        # > Exit button
         self.close_button = ctk.CTkButton(self.menu_frame, command=self.destroy, text="Exit", 
                                           width=250, height=50, font=("Arial", 16), 
                                           fg_color="#555555", hover_color="#777777")
         self.close_button.grid(row=3, column=0, padx=40, pady=(15, 40))
         
-        # > Footer info
-        self.version_label = ctk.CTkLabel(self, text="v0.01 | SFEDIT", text_color="gray")
+        # footer
+        self.version_label = ctk.CTkLabel(self, text="v0.02 | SFEDIT", text_color="gray")
         self.version_label.place(relx=0.5, rely=0.95, anchor="center")
 
     def open_thickness_window(self):
+        # check if it's already open
         if self.thickness_window is None or not self.thickness_window.winfo_exists():
-            self.thickness_window = ThicknessWindow(self)
+            self.thickness_window = FileEditWindow(self)
         else:
             self.thickness_window.focus()
 
@@ -75,21 +70,21 @@ class SFEDIT(ctk.CTk):
             self.render_window.focus()
 
 
-class ThicknessWindow(ctk.CTkToplevel):
+class FileEditWindow(ctk.CTkToplevel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.title("Thickness Editor")
-        self.geometry("700x500")
+        # setup the popup window
+        self.title("File Editor")
+        self.geometry("700x750")
         self.lift()
         self.focus_force()
         self.grab_set()
         
-        # --- Layout ---
         self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=1) # Content row grows
+        self.grid_rowconfigure(1, weight=1)
 
-        # 1. Top Controls Bar
+        # --- Top Nav ---
         self.top_bar = ctk.CTkFrame(self)
         self.top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
 
@@ -97,36 +92,95 @@ class ThicknessWindow(ctk.CTkToplevel):
                                          width=100, fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
         self.back_button.pack(side="left", padx=10, pady=5)
 
-        self.status_label = ctk.CTkLabel(self.top_bar, text="Ready.")
+        self.status_label = ctk.CTkLabel(self.top_bar, text="Select options to edit.")
         self.status_label.pack(side="left", padx=10)
 
-        # 2. Main Content Area
-        self.content_frame = ctk.CTkFrame(self)
-        self.content_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
-        self.content_frame.grid_columnconfigure(0, weight=1)
-        
-        # Title in Content
-        self.lbl_title = ctk.CTkLabel(self.content_frame, text="Adjust Armor Thickness", font=("Arial", 20, "bold"))
-        self.lbl_title.pack(pady=(40, 20))
+        # --- Scrollable Options List ---
+        # using a scrollable frame so i can add more stuff later
+        self.options_frame = ctk.CTkScrollableFrame(self, label_text="Modification Options")
+        self.options_frame.grid(row=1, column=0, sticky="nsew", padx=20, pady=(0, 20))
+        self.options_frame.grid_columnconfigure(0, weight=1)
 
-        # Value Label
+        # ==================================================
+        # OPTION 1: ARMOR THICKNESS
+        # ==================================================
+        self.thick_frame = ctk.CTkFrame(self.options_frame)
+        self.thick_frame.pack(fill="x", padx=10, pady=10)
+
+        self.use_thickness_var = ctk.BooleanVar(value=False)
+        self.thick_check = ctk.CTkCheckBox(self.thick_frame, text="Overwrite Armor Thickness", 
+                                           variable=self.use_thickness_var, command=self.toggle_thickness_ui,
+                                           font=("Arial", 14, "bold"), fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
+        self.thick_check.pack(anchor="w", padx=10, pady=10)
+
+        self.thick_content = ctk.CTkFrame(self.thick_frame, fg_color="transparent")
+        self.thick_content.pack(fill="x", padx=20, pady=(0, 10))
+
         self.thickval = 5
-        self.thick_label = ctk.CTkLabel(self.content_frame, text=f"{self.thickval} mm", font=("Arial", 40, "bold"), text_color=COLOR_PRIMARY)
-        self.thick_label.pack(pady=10)
+        self.thick_label = ctk.CTkLabel(self.thick_content, text=f"{self.thickval} mm", font=("Arial", 30, "bold"))
+        self.thick_label.pack()
 
-        # Slider
-        self.thick_slider = ctk.CTkSlider(self.content_frame, from_=1, to=200, command=self.set_thick, width=400,
-                                          fg_color=COLOR_SLIDER_BG, button_color=COLOR_PRIMARY, 
-                                          button_hover_color=COLOR_HOVER, progress_color=COLOR_PRIMARY)
-        self.thick_slider.pack(pady=20)
+        self.thick_slider = ctk.CTkSlider(self.thick_content, from_=1, to=200, command=self.set_thick, width=350)
+        self.thick_slider.pack(pady=10)
         self.thick_slider.set(self.thickval)
 
-        # Apply Button
-        self.apply_button = ctk.CTkButton(self.content_frame, command=self.change_thickness, 
-                                          text="Select File & Apply",
-                                          width=300, height=50, font=("Arial", 16),
+        # init state
+        self.toggle_thickness_ui()
+
+        # ==================================================
+        # OPTION 2: TRACKS
+        # ==================================================
+        self.tracks_frame = ctk.CTkFrame(self.options_frame)
+        self.tracks_frame.pack(fill="x", padx=10, pady=10)
+
+        # master switch for tracks
+        self.use_tracks_var = ctk.BooleanVar(value=False)
+        self.tracks_check = ctk.CTkCheckBox(self.tracks_frame, text="Track Modifications", 
+                                            variable=self.use_tracks_var, command=self.toggle_tracks_ui,
+                                            font=("Arial", 14, "bold"), fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
+        self.tracks_check.pack(anchor="w", padx=10, pady=10)
+
+        self.tracks_content = ctk.CTkFrame(self.tracks_frame, fg_color="transparent")
+        self.tracks_content.pack(fill="x", padx=20, pady=(0, 10))
+
+        # Box 1: Invisible Tracks (guid swap)
+        self.opt_inv_tracks_var = ctk.BooleanVar(value=False)
+        self.opt_inv_tracks = ctk.CTkCheckBox(self.tracks_content, text="Invisible Tracks", variable=self.opt_inv_tracks_var)
+        self.opt_inv_tracks.pack(anchor="w", pady=5)
+
+        # placeholder for next feature
+        # self.opt_wide_tracks_var = ctk.BooleanVar(value=False)
+        # self.opt_wide_tracks = ctk.CTkCheckBox(self.tracks_content, text="Wide Tracks", variable=self.opt_wide_tracks_var)
+        # self.opt_wide_tracks.pack(anchor="w", pady=5)
+
+        self.toggle_tracks_ui()
+
+        # --- Apply Button ---
+        self.footer_frame = ctk.CTkFrame(self)
+        self.footer_frame.grid(row=2, column=0, sticky="ew", padx=20, pady=20)
+
+        self.apply_button = ctk.CTkButton(self.footer_frame, command=self.apply_changes, 
+                                          text="Select File & Apply Selected Changes",
+                                          height=50, font=("Arial", 16),
                                           fg_color=COLOR_PRIMARY, hover_color=COLOR_HOVER)
-        self.apply_button.pack(pady=40)
+        self.apply_button.pack(fill="x", padx=10, pady=10)
+
+    # --- UI Helpers ---
+
+    def toggle_thickness_ui(self):
+        # handle visual state (greyed out vs normal)
+        if self.use_thickness_var.get():
+            self.thick_label.configure(text_color=COLOR_PRIMARY)
+            self.thick_slider.configure(state="normal", button_color=COLOR_PRIMARY, progress_color=COLOR_PRIMARY)
+        else:
+            grey = "#555555"
+            dark_grey = "#333333"
+            self.thick_label.configure(text_color=grey)
+            self.thick_slider.configure(state="disabled", button_color=grey, progress_color=dark_grey)
+
+    def toggle_tracks_ui(self):
+        state = "normal" if self.use_tracks_var.get() else "disabled"
+        self.opt_inv_tracks.configure(state=state)
 
     def set_thick(self, value):
         try:
@@ -136,32 +190,29 @@ class ThicknessWindow(ctk.CTkToplevel):
         self.thickval = x
         self.thick_label.configure(text=f"{self.thickval} mm")
 
-    def change_thickness(self):
-        filepath = ctk.filedialog.askopenfilename(title="Select your .blueprint file", filetypes=[("Blueprint files", "*.blueprint")])
+    def apply_changes(self):
+        # sanity check: did user actually tick anything?
+        if not (self.use_thickness_var.get() or self.use_tracks_var.get()):
+            self.status_label.configure(text="No options selected. Nothing to do.")
+            return
+
+        filepath = ctk.filedialog.askopenfilename(title="Select .blueprint", filetypes=[("Blueprint files", "*.blueprint")])
         if not filepath:
             self.status_label.configure(text="Cancelled.")
             return
 
-        thickval = self.thickval
-
-        def new_thick(match):
-            block = match.group(0)  # Get the "t" block
-            return re.sub(r'\d+(?=\s*[,\]])', str(thickval), block)
-
-        cur_thick = r'"t":\s*\[\s*(?:\d+\s*,\s*(?:\s*\n\s*)*)*\d+\s*\]'
-
-        try:
-            with open(filepath, "r", encoding="utf-8") as file:
-                filedata = file.read()
-
-            filedata = re.sub(cur_thick, new_thick, filedata, flags=re.DOTALL)
-
-            with open(filepath, "w", encoding="utf-8") as file:
-                file.write(filedata)
+        # bundle up the settings
+        settings = {
+            "use_thickness": self.use_thickness_var.get(),
+            "thickness_val": self.thickval,
             
-            self.status_label.configure(text=f"Success! Set to {thickval}mm for {os.path.basename(filepath)}")
-        except Exception as e:
-            self.status_label.configure(text=f"Error: {str(e)}")
+            "use_tracks": self.use_tracks_var.get(),
+            "invisible_tracks": self.opt_inv_tracks_var.get()
+        }
+
+        # do the heavy lifting in functions.py
+        success, msg = edit_blueprint_file(filepath, settings)
+        self.status_label.configure(text=msg)
 
 
 class RenderWindow(ctk.CTkToplevel):
@@ -174,17 +225,16 @@ class RenderWindow(ctk.CTkToplevel):
         self.focus_force()
         self.grab_set()
 
-        # Memory / Animation State
+        # anim state
         self.frames = []
         self.current_frame_idx = 0
         self.animation_id = None
         self.is_playing = False
 
-        # --- Layout ---
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # 1. Top Controls Area
+        # 1. controls
         self.controls_frame = ctk.CTkFrame(self)
         self.controls_frame.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
 
@@ -199,25 +249,23 @@ class RenderWindow(ctk.CTkToplevel):
         self.status_label = ctk.CTkLabel(self.controls_frame, text="Select a file to begin.")
         self.status_label.pack(side="left", padx=10)
 
-        # 2. Display Area
+        # 2. image display
         self.display_frame = ctk.CTkFrame(self)
         self.display_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(0, 10))
 
         self.image_label = ctk.CTkLabel(self.display_frame, text="")
         self.image_label.pack(expand=True, fill="both", padx=10, pady=10)
 
-        # 3. Bottom Controls (Slider & Switch)
+        # 3. playback controls
         self.playback_frame = ctk.CTkFrame(self)
         self.playback_frame.grid(row=2, column=0, sticky="ew", padx=10, pady=(0, 10))
 
-        # Auto Spin Switch
         self.auto_spin_var = ctk.BooleanVar(value=True)
         self.spin_switch = ctk.CTkSwitch(self.playback_frame, text="Auto Spin", 
                                          command=self.toggle_spin, variable=self.auto_spin_var,
                                          progress_color=COLOR_PRIMARY, fg_color="#555555")
         self.spin_switch.pack(side="left", padx=20, pady=10)
 
-        # Manual Rotation Slider
         self.frame_slider = ctk.CTkSlider(self.playback_frame, from_=0, to=1, number_of_steps=1,
                                           command=self.on_slider_drag,
                                           fg_color=COLOR_SLIDER_BG, button_color=COLOR_PRIMARY, 
@@ -238,7 +286,7 @@ class RenderWindow(ctk.CTkToplevel):
         self.stop_animation()
 
         try:
-            # Generate 60 frames for a full rotation
+            # generating frames takes a sec
             self.frames = generate_render_frames(filepath, size=800, frames_count=60)
             
             if not self.frames:
@@ -247,12 +295,11 @@ class RenderWindow(ctk.CTkToplevel):
 
             self.status_label.configure(text=f"Loaded: {os.path.basename(filepath)}")
             
-            # Update Slider limits to match frame count
+            # fix slider limits
             count = len(self.frames)
             self.frame_slider.configure(to=count - 1, number_of_steps=count - 1)
             self.frame_slider.set(0)
 
-            # Start
             self.start_animation()
         except Exception as e:
             self.status_label.configure(text=f"Error: {str(e)}")

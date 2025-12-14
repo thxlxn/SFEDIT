@@ -3,22 +3,22 @@ import math
 import numpy as np
 import cv2
 from PIL import Image
+import os
 
 # --- SETTINGS ---
 TARGET_FACE_COUNT = 15000 
 RENDER_SIZE = 800
 
+# ==========================================
+# RENDERING MATH (collapsed)
+# ==========================================
 def get_rotation_matrix(rot):
-    """
-    Creates a rotation matrix.
-    """
     safe_rot = rot[:3]
     if len(safe_rot) < 3:
         safe_rot += [0] * (3 - len(safe_rot))
 
     rx, ry, rz = [math.radians(a) for a in safe_rot]
 
-    # Roll
     mat_z = np.array([
         [math.cos(rz), -math.sin(rz), 0, 0],
         [math.sin(rz), math.cos(rz), 0, 0],
@@ -26,7 +26,6 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # Pitch
     mat_x = np.array([
         [1, 0, 0, 0],
         [0, math.cos(rx), -math.sin(rx), 0],
@@ -34,7 +33,6 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # Yaw
     mat_y = np.array([
         [math.cos(ry), 0, math.sin(ry), 0],
         [0, 1, 0, 0],
@@ -42,13 +40,9 @@ def get_rotation_matrix(rot):
         [0, 0, 0, 1]
     ])
 
-    # combined rotation
     return np.dot(mat_y, np.dot(mat_x, mat_z))
 
 def compose_transform(pos, rot, scale):
-    """
-    Composes the local transform matrix
-    """
     safe_scale = scale[:3]
     if len(safe_scale) < 3: safe_scale += [1] * (3 - len(safe_scale))
     
@@ -63,18 +57,13 @@ def compose_transform(pos, rot, scale):
     mat_t = np.identity(4)
     mat_t[:3, 3] = safe_pos
 
-    # Order: T * R * S
     return np.dot(mat_t, np.dot(mat_r, mat_s))
 
 def bake_geometry(data):
-    """
-    Flattens hierarchy and handles symmetry.
-    """
     objects = {o["vuid"]: o for o in data.get("objects", [])}
     blueprints = {b["id"]: b for b in data.get("blueprints", [])}
     meshes = {m["vuid"]: m for m in data.get("meshes", [])}
 
-    # 1. Calculate Global Matrices
     global_matrices = {}
 
     def get_global_matrix(vuid):
@@ -99,7 +88,6 @@ def bake_geometry(data):
         global_matrices[vuid] = global_mat
         return global_mat
 
-    # Pre-calculate matrices for everything (parents might be non-geometry)
     for vuid in objects:
         get_global_matrix(vuid)
 
@@ -127,14 +115,9 @@ def bake_geometry(data):
             baked_faces.append(new_indices)
         vertex_offset += len(transformed_verts)
 
-    # 2. Iterate and Bake
     for vuid, obj in objects.items():
-        
-        # --- STRICT FILTER ---
-        # 1. Ignore Procedural Cannons explicitly
         if "cannonBlueprintVuid" in obj: continue
         
-        # 2. Only process objects that have a Structure Blueprint (Plates, Turrets, Hulls)
         bp_id = obj.get("structureBlueprintVuid", -1)
         if bp_id == -1 or bp_id not in blueprints: continue
 
@@ -143,13 +126,9 @@ def bake_geometry(data):
 
         mesh_id = bp.get("blueprint", {}).get("bodyMeshVuid", -1)
         
-        # Render Original
         matrix = global_matrices[vuid]
         add_mesh_to_scene(mesh_id, matrix)
 
-        # --- IMPLICIT SYMMETRY ---
-        # If this is a structural object with symmetry enabled (Bit 3 / Value 4)
-        # and no explicit mirror object exists, we generate the ghost.
         flags = obj.get("flags", 0)
         mirror_vuid = obj.get("transform", {}).get("mirrorVuid", -1)
 
@@ -241,3 +220,76 @@ def generate_render_frames(filepath, size=600, frames_count=60):
         pil_frames.append(Image.fromarray(img_rgb))
 
     return pil_frames
+
+
+# ==========================================
+# FILE EDITING FUNCTIONS
+# ==========================================
+
+def recursive_thickness_update(data, target_thick):
+    # Crawl the whole JSON tree to find "t": [...]
+    if isinstance(data, dict):
+        for key, value in data.items():
+            # found "t" list?
+            if key == "t" and isinstance(value, list):
+                # preserve exact length, fill with new value
+                data[key] = [target_thick] * len(value)
+            
+            # keep digging deeply
+            elif isinstance(value, (dict, list)):
+                recursive_thickness_update(value, target_thick)
+                
+    elif isinstance(data, list):
+        for item in data:
+            recursive_thickness_update(item, target_thick)
+
+def edit_blueprint_file(filepath, settings):
+    try:
+        # Load safely as JSON
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # ------------------------------------------
+        # 1. ARMOR THICKNESS (Global Recursive Fix)
+        # ------------------------------------------
+        if settings.get("use_thickness"):
+            target_thick = settings.get("thickness_val", 5)
+            recursive_thickness_update(data, target_thick)
+
+        # ------------------------------------------
+        # 2. TRACK OPTIONS
+        # ------------------------------------------
+        if settings.get("use_tracks"):
+            
+            # Invisible Tracks
+            if settings.get("invisible_tracks"):
+                track_guid = "843f3a65-30f6-4180-a719-f3af1e2bacfe"
+                
+                blueprints = data.get("blueprints", [])
+                for bp in blueprints:
+                    # Look for type "trackBelt"
+                    if bp.get("type") == "trackBelt":
+                        # Safety check: ensure "blueprint" dict exists
+                        if "blueprint" not in bp:
+                            bp["blueprint"] = {}
+                        
+                        # Apply the GUID to the inner blueprint data
+                        bp["blueprint"]["segmentID"] = track_guid
+
+        # ------------------------------------------
+        # SAVE AS COPY
+        # ------------------------------------------
+        base_dir = os.path.dirname(filepath)
+        base_name = os.path.basename(filepath)
+        name_only, ext = os.path.splitext(base_name)
+        
+        new_name = f"{name_only} edited{ext}"
+        new_path = os.path.join(base_dir, new_name)
+
+        with open(new_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+            
+        return True, f"Saved as: {new_name}"
+
+    except Exception as e:
+        return False, f"Error: {str(e)}"
