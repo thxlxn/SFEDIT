@@ -15,6 +15,12 @@ Changes the armor thickness of every single face of the selected compartment/veh
 
 ## 3D Visualizer
 Tries to replicate the feature available in Sprocket's official Discord server but with the edition of a slider that lets you spin the output image.
-Do keep in mind that loading a **really heavy** blueprint can lead to your machine running out-of-memory. Be careful with this... <sub>or don't, that's up to you</sub>
+Do keep in mind that loading a **really heavy** blueprint can lead to your machine running out-of-memory. Be careful with this... 
+<sub>or don't, that's up to you</sub>
+
+## Blueprint Packager
+The packager lets the user upload .blueprint files, automatically retrieves all used local decals and packs them into a .zip file together for the blueprints.
+This allows for easy sharing of your blueprints without having to remember the decals you have used. 
+<sub>custom paint packaging is in progress</sub>
 
 <sup>Discord: the_len</sup>
