@@ -1,7 +1,7 @@
 import os
 import customtkinter as ctk
 from customtkinter import filedialog
-from functions import generate_render_frames, edit_blueprint_file, pack_blueprint_for_sharing
+from .functions import generate_render_frames, edit_blueprint_file, pack_blueprint_for_sharing
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
