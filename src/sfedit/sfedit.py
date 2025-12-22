@@ -392,7 +392,7 @@ class PackWindow(ctk.CTkToplevel):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # --- Top Nav (Consistent with File Editor) ---
+        # --- Top Nav ---
         self.top_bar = ctk.CTkFrame(self)
         self.top_bar.grid(row=0, column=0, sticky="ew", padx=10, pady=10)
 
