@@ -32,7 +32,7 @@ class SFEDIT(ctk.CTk):
         self.menu_frame.grid_columnconfigure(0, weight=1)
 
         # title
-        self.title_label = ctk.CTkLabel(self.menu_frame, text="SPROCKET EDITOR", 
+        self.title_label = ctk.CTkLabel(self.menu_frame, text="SPROCKET FILE EDITOR", 
                                         font=("Arial", 28, "bold"), text_color=COLOR_PRIMARY)
         self.title_label.grid(row=0, column=0, padx=40, pady=(40, 20))
 
@@ -63,12 +63,10 @@ class SFEDIT(ctk.CTk):
         self.close_button.grid(row=4, column=0, padx=40, pady=(15, 40))
 
         # footer and version
-
         try:
             current_version = version("sfedit")
         except PackageNotFoundError:
             current_version = "dev"
-
 
         self.version_label = ctk.CTkLabel(self, text=f"{current_version} | SFEDIT", text_color="gray")
         self.version_label.place(relx=0.5, rely=0.95, anchor="center")
