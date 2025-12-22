@@ -1,6 +1,6 @@
 ![image](https://github.com/thxlxn/SprocketForge/blob/main/assets/fv4030as.png)
 # SprocketForge
-![License](https://img.shields.io/github/license/thxlxn/SprocketForge)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 ![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)
 ![Issues](https://img.shields.io/github/issues/thxlxn/SprocketForge) 
 [![Python Quality Check](https://github.com/thxlxn/SprocketForge/actions/workflows/python-lint.yml/badge.svg)](https://github.com/thxlxn/SprocketForge/actions/workflows/python-lint.yml) <br>
