@@ -12,12 +12,12 @@ COLOR_PRIMARY = "#C59102"
 COLOR_HOVER = "#DDB74F"
 COLOR_SLIDER_BG = "#DBC587"
 
-class SFEDIT(ctk.CTk):
+class Core(ctk.CTk):
     def __init__(self, *args, **kwargs): 
         super().__init__(*args, **kwargs)
 
         # main window setup
-        self.title("Sprocket File Editor")
+        self.title("SprocketForge")
         self.geometry("800x600")
 
         # container setup
@@ -49,10 +49,10 @@ class SFEDIT(ctk.CTk):
     
     def add_footer(self):
         try:
-            current_version = version("sfedit")
+            current_version = version("sprocketforge")
         except PackageNotFoundError:
             current_version = "dev"
-        self.version_label = ctk.CTkLabel(self.container, text=f"{current_version} | SFEDIT", text_color="gray", fg_color="transparent", padx = 10)
+        self.version_label = ctk.CTkLabel(self.container, text=f"{current_version} | SprocketForge", text_color="gray", fg_color="transparent", padx = 10)
         self.version_label.place(relx=0.5, rely=0.98, anchor="center")
 
 class MainMenu(ctk.CTkFrame):
@@ -68,7 +68,7 @@ class MainMenu(ctk.CTkFrame):
         self.menu_frame.grid_columnconfigure(0, weight=1)
 
         # title
-        self.title_label = ctk.CTkLabel(self.menu_frame, text="SPROCKET FILE EDITOR", 
+        self.title_label = ctk.CTkLabel(self.menu_frame, text="SPROCKET FORGE", 
                                         font=("Arial", 28, "bold"), text_color=COLOR_PRIMARY)
         self.title_label.grid(row=0, column=0, padx=40, pady=(40, 20))
 
@@ -482,5 +482,5 @@ class EraPage(ctk.CTkFrame):
         self.wip_label.place(relx = 0.5, rely = 0.5, anchor="center")
 
 if __name__ == "__main__":
-    root = SFEDIT()
+    root = Core()
     root.mainloop()

@@ -1,5 +1,5 @@
-from src.sfedit.sfedit import SFEDIT
+from src.sfedit.sfedit import Core
 
 if __name__ == "__main__":
-    app = SFEDIT()
+    app = Core()
     app.mainloop()
