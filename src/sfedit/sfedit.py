@@ -1,6 +1,7 @@
 import os
 import customtkinter as ctk
 from customtkinter import filedialog
+from importlib.metadata import version, PackageNotFoundError
 from .functions import generate_render_frames, edit_blueprint_file, pack_blueprint_for_sharing
 
 ctk.set_appearance_mode("dark")
@@ -61,8 +62,15 @@ class SFEDIT(ctk.CTk):
 
         self.close_button.grid(row=4, column=0, padx=40, pady=(15, 40))
 
-        # footer
-        self.version_label = ctk.CTkLabel(self, text="v0.3.1 | SFEDIT", text_color="gray")
+        # footer and version
+
+        try:
+            current_version = version("sfedit")
+        except PackageNotFoundError:
+            current_version = "dev"
+
+
+        self.version_label = ctk.CTkLabel(self, text=f"{current_version} | SFEDIT", text_color="gray")
         self.version_label.place(relx=0.5, rely=0.95, anchor="center")
 
     def open_thickness_window(self):
