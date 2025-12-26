@@ -300,6 +300,18 @@ def edit_blueprint_file(filepath, settings):
 # ==========================================
 # BLUEPRINT SHARING FUNCTIONS
 # ==========================================
+def get_paint(blueprint_data):
+
+    blueprints = blueprint_data.get("blueprints", [])
+
+    for bp in blueprints:
+        if bp.get("type") == "paintJob":
+            paintjob_url = bp.get("blueprint", {}).get("colourMapUrl")
+            if paintjob_url and not paintjob_url.startswith("http"):
+                return paintjob_url
+    
+    return None
+
 
 def get_blueprint_decals(blueprint_data):
     """
@@ -310,6 +322,7 @@ def get_blueprint_decals(blueprint_data):
     blueprints = blueprint_data.get("blueprints", [])
     
     for bp in blueprints:
+
         if bp.get("type") == "decal":
             image_url = bp.get("blueprint", {}).get("imageURL")
             if image_url and not image_url.startswith("http"):
@@ -319,43 +332,40 @@ def get_blueprint_decals(blueprint_data):
 
 def pack_blueprint_for_sharing(blueprint_path, sprocket_dir):
     """
-    Takes a blueprint file, finds all required local decals in the user's directory,
-    and packs everything into a ZIP file formatted for sharing.
+    Packs blueprint, decals, and paint.
     """
     try:
         with open(blueprint_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             
         decal_paths = get_blueprint_decals(data)
+        paint_path = get_paint(data)
         
-        # prepare zip name
         base_name = os.path.basename(blueprint_path)
         name_only = os.path.splitext(base_name)[0]
         zip_name = f"{name_only}_package.zip"
         zip_path = os.path.join(os.path.dirname(blueprint_path), zip_name)
         
         with zipfile.ZipFile(zip_path, 'w') as zipf:
-            
+            # blueprint
             zipf.write(blueprint_path, arcname=os.path.join("vehicles", base_name))
             
-            
+            # decals
             for local_path in decal_paths:
-                full_decal_path = os.path.join(sprocket_dir, local_path)
                 
-                if not os.path.exists(full_decal_path):
-                    potential_path = os.path.join(sprocket_dir, "Sprocket_Data", "StreamingAssets", "Decals", os.path.basename(local_path))
-                    if os.path.exists(potential_path):
-                        full_decal_path = potential_path
-                    else:
-                        potential_path = os.path.join(sprocket_dir, "Decals", os.path.basename(local_path))
-                        if os.path.exists(potential_path):
-                            full_decal_path = potential_path
-
-                if os.path.exists(full_decal_path):
-                    decal_filename = os.path.basename(full_decal_path)
-                    zipf.write(full_decal_path, arcname=os.path.join("decals", decal_filename))
+                full_path = os.path.join(sprocket_dir, "Decals", os.path.basename(local_path))
+                if os.path.exists(full_path):
+                    zipf.write(full_path, arcname=os.path.join("decals", os.path.basename(full_path)))
                 else:
-                    print(f"Warning: Could not find decal file: {local_path}")
+                    print(f"Missing Decal: {full_path}")
+
+            # paint
+            if paint_path:
+                full_paint_path = os.path.join(sprocket_dir, "Paint", os.path.basename(paint_path))
+                if os.path.exists(full_paint_path):
+                    zipf.write(full_paint_path, arcname=os.path.join("paints", os.path.basename(full_paint_path)))
+                else:
+                    print(f"Missing Paint: {full_paint_path}")
         
         return True, f"Created package: {zip_name}"
         
